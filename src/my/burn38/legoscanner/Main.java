@@ -12,13 +12,8 @@ import java.awt.image.FilteredImageSource;
 import java.awt.image.ImageFilter;
 import java.awt.image.ImageProducer;
 import java.awt.image.WritableRaster;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -62,10 +57,12 @@ public class Main {
 	static JCheckBox contours=new JCheckBox(), shapes = new JCheckBox();
 	static Thread camera_thread;
 	static CanvasFrame frame;
+	static List<String> comment_tags = new ArrayList<String>();
 	
 	public static void main(String[] args) {
-		if (!new File("database.db").exists() || empty(new File("database.db"))) setup_settings(new File("database.db"));
-		base1cm = Double.parseDouble(readLine(new File("settings.conf"), "base1cm"));
+		comment_tags.add("#");
+		if (!new File("database.db").exists() || FileUtils.isEmpty("database.db")) setup_settings("database.db");
+		if (!new File("settings.conf").exists() || FileUtils.isEmpty("settings.conf")) setup_settings("settings.conf");
 		window = new JFrame();
 		JPanel pan = new JPanel();
 		final JButton button_start = new JButton("Start");
@@ -84,31 +81,31 @@ public class Main {
 		shapes.setEnabled(false);
 
 		options = new JComboBox<String>();
-		options.addItem("Ø");
+		options.addItem("Ã˜");
 		options.addItem("B&W");
 		options.addItem("iB&W");
 		options.addItem("SoG");
-		options.addItem("T");
+		//options.addItem("T");
 		
 		filter_power = new JSlider();
 		filter_power.setSize(2, filter_power.getHeight());
 		filter_power.setEnabled(false);
+
+		base1cm = Double.parseDouble(FileUtils.readLine("settings.conf", "base1cm", ":", false));
 		
 		options.addActionListener(new ActionListener() {
-
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				HashMap<String, Integer> show_filterPower = new HashMap<String, Integer>(); show_filterPower.put("B&W", 255); show_filterPower.put("iB&W", 255); show_filterPower.put("SoG", 100);
-				show_filterPower.put("T",  100);
 				if (show_filterPower.containsKey(options.getSelectedItem())) {
 					filter_power.setEnabled(true);
 					filter_power.setMaximum(show_filterPower.get(options.getSelectedItem()));
-					if (filter_power.getValue() != filter_power.getMinimum() && filter_power.getValue() != filter_power.getMaximum()) {contours.setEnabled(true);shapes.setEnabled(true);}
-					else {contours.setEnabled(false);contours.setSelected(false);shapes.setEnabled(false);shapes.setSelected(false);}
+					if (filter_power.getValue() != filter_power.getMinimum() && filter_power.getValue() != filter_power.getMaximum()) {contours.setEnabled(true);shapes.setEnabled(true);calibrate.setEnabled(true);}
+					else {contours.setEnabled(false);contours.setSelected(false);shapes.setEnabled(false);shapes.setSelected(false);calibrate.setEnabled(false);}
 				} else {
 					filter_power.setEnabled(false);
-					if (filter_power.getValue() != filter_power.getMinimum() && filter_power.getValue() != filter_power.getMaximum()) {contours.setEnabled(true);shapes.setEnabled(true);}
-					else {contours.setEnabled(false);contours.setSelected(false);shapes.setEnabled(false);shapes.setSelected(false);}
+					if (filter_power.getValue() != filter_power.getMinimum() && filter_power.getValue() != filter_power.getMaximum()) {calibrate.setEnabled(false);contours.setSelected(false);contours.setEnabled(false);shapes.setEnabled(false);shapes.setSelected(false);}
+					else {contours.setEnabled(false);contours.setSelected(false);shapes.setEnabled(false);shapes.setSelected(false);calibrate.setEnabled(false);}
 				}
 			}
 			
@@ -119,8 +116,8 @@ public class Main {
 			@Override
 			public void stateChanged(ChangeEvent arg0) {
 				text.setText(filter_power.getValue()+" / "+filter_power.getMaximum());
-				if (filter_power.getValue() != filter_power.getMinimum() && filter_power.getValue() != filter_power.getMaximum()) {contours.setEnabled(true);shapes.setEnabled(true);}
-				else {contours.setEnabled(false);contours.setSelected(false);shapes.setEnabled(false);shapes.setSelected(false);}
+				if (filter_power.getValue() != filter_power.getMinimum() && filter_power.getValue() != filter_power.getMaximum()) {contours.setEnabled(true);shapes.setEnabled(true);calibrate.setEnabled(true);}
+				else {contours.setEnabled(false);contours.setSelected(false);shapes.setEnabled(false);shapes.setSelected(false);calibrate.setEnabled(false);}
 			}
 			
 		});
@@ -154,21 +151,21 @@ public class Main {
 				int filterPower = filter_power.getValue();
 				boolean display_contours = contours.isSelected(), log_shapes = shapes.isSelected();
 				
-				writeLine(new File("settings.conf"), "base1cm", Double.toString(base1cm),false);
-				writeLine(new File("settings.conf"), ".onload_mode", mode,false);
-				writeLine(new File("settings.conf"), ".onload_filterPower", Integer.toString(filterPower),false);
-				writeLine(new File("settings.conf"), ".onload_displayContours", Boolean.toString(display_contours),false);
-				writeLine(new File("settings.conf"), ".onload_logShapesToConsole", Boolean.toString(log_shapes),false);
-				writeLine(new File("settings.conf"), ".onload_merge", Double.valueOf(margeder.getText()).toString(),false);
+				FileUtils.writeLine("settings.conf", "base1cm", Double.toString(base1cm),":");
+				FileUtils.writeLine("settings.conf", ".onload_mode", mode,":");
+				FileUtils.writeLine("settings.conf", ".onload_filterPower", Integer.toString(filterPower),":");
+				FileUtils.writeLine("settings.conf", ".onload_displayContours", Boolean.toString(display_contours),":");
+				FileUtils.writeLine("settings.conf", ".onload_logShapesToConsole", Boolean.toString(log_shapes),":");
+				FileUtils.writeLine("settings.conf", ".onload_merge", Double.valueOf(margeder.getText()).toString(),":");
 			}			
 		});
 		
 		try{
-			options.setSelectedItem(readLine(new File("settings.conf"), ".onload_mode"));
-			filter_power.setValue(Integer.parseInt(readLine(new File("settings.conf"), ".onload_filterPower")));
-			contours.setSelected(Boolean.parseBoolean(readLine(new File("settings.conf"), ".onload_displayContours")));
-			shapes.setSelected(Boolean.parseBoolean(readLine(new File("settings.conf"), ".onload_logShapesToConsole")));
-			margeder.setText(readLine(new File("settings.conf"), ".onload_merge"));
+			options.setSelectedItem(FileUtils.readLine("settings.conf", ".onload_mode", ":", false));
+			filter_power.setValue(Integer.parseInt(FileUtils.readLine("settings.conf", ".onload_filterPower", ":", false)));
+			contours.setSelected(Boolean.parseBoolean(FileUtils.readLine("settings.conf", ".onload_displayContours", ":", false)));
+			shapes.setSelected(Boolean.parseBoolean(FileUtils.readLine("settings.conf", ".onload_logShapesToConsole", ":", false)));
+			margeder.setText(FileUtils.readLine("settings.conf", ".onload_merge",":",false));
 		}catch(Exception e) {}
 		
 		pan.add(button_start);
@@ -336,28 +333,27 @@ public class Main {
 		    box.add(pos);
 		    base1cm=(box.get(0).get(0) > box.get(0).get(1) ? box.get(0).get(0) : box.get(0).get(1));
 		    
-		    writeLine(new File("settings.conf"), "base1cm", Double.toString(base1cm),false);
+		    FileUtils.writeLine("settings.conf", "base1cm", Double.toString(base1cm),":");
 		  }
 		return base1cm;
 		}
 	
-	public static void setup_settings(File file) {
+	public static void setup_settings(String name) {
+		File file = new File(name);
 		if (!file.exists()) {
-			try {
-				file.createNewFile();
-				setup_settings(file);
-			} catch (IOException e) {}
+			FileUtils.createFile(name);
+			setup_settings(name);
 		}
-		if (file.getName().contains("settings")) {
-			if (readLine(file, "base1cm") == "0x.E1") writeLine(file, "base1cm", Double.toString(base1cm),false);
-			if (readLine(file, ".onload_mode") == "0x.E1") writeLine(file, ".onload_mode", "Ø",false);
-			if (readLine(file, ".onload_filterPower") == "0x.E1") writeLine(file, ".onload_filterPower", "50",false);
-			if (readLine(file, ".onload_displayContours") == "0x.E1") writeLine(file, ".onload_displayContours", "false",false);
-			if (readLine(file, ".onload_logShapesToConsole") == "0x.E1") writeLine(file, ".onload_logShapesToConsole", "false",false);
-			if (readLine(file, ".onload_merge") == "0x.E1") writeLine(file, ".onload_merge", "1",false);
-		} else if (file.getName().contains("database") && empty(file)) {
-			writeComment(file, "Ajouter des types de blocs de la façon suivante:   id:longueur;largeur", false);
-			writeComment(file, "Exemple:   1:3.2;5.0", false);
+		if (name.contains("settings") && FileUtils.isEmpty("settings.conf")) {
+			if (FileUtils.readLine("settings.conf", "base1cm", ":", true) == null) FileUtils.addLine("settings.conf", "base1cm", Double.toString(base1cm),":");
+			if (FileUtils.readLine("settings.conf", ".onload_mode", ":", true) == null) FileUtils.addLine("settings.conf", ".onload_mode", "Ã˜",":");
+			if (FileUtils.readLine("settings.conf", ".onload_filterPower", ":", true) == null) FileUtils.addLine("settings.conf", ".onload_filterPower", "50",":");
+			if (FileUtils.readLine("settings.conf", ".onload_displayContours", ":", true) == null) FileUtils.addLine("settings.conf", ".onload_displayContours", "false",":");
+			if (FileUtils.readLine("settings.conf", ".onload_logShapesToConsole", ":", true) == null) FileUtils.addLine("settings.conf", ".onload_logShapesToConsole", "false",":");
+			if (FileUtils.readLine("settings.conf", ".onload_merge", ":", true) == null) FileUtils.addLine("settings.conf", ".onload_merge", "1",":");
+		} else if (name.contains("database") && FileUtils.isEmpty("database.db")) {
+			FileUtils.writeComment("database.db", "top", "#", "Ajouter des types de blocs de la faÃ§on suivante:   id:longueur;largeur", "add");
+			FileUtils.writeComment("database.db", "top", "#", "Exemple:   1:3.2;5.0", "add");
 			List<String> lines = new ArrayList<String>();
 			try {
 				lines = Files.readAllLines(file.toPath(), Charset.defaultCharset());
@@ -376,153 +372,10 @@ public class Main {
 		}
 	}
 	
-	public static String readLine(File file, String str) {
-		try {
-			if (!file.exists()) setup_settings(file);
-			FileInputStream fis = new FileInputStream(file);
-			BufferedReader br = new BufferedReader(new InputStreamReader(fis));
-			String line = null;
-			while ((line = br.readLine()) != null) {
-				if (line.startsWith("'"+str+"'"+":") || line.startsWith("'"+str+"'"+": ") || line.startsWith(str+":") || line.startsWith(str+": ")) {
-					br.close();
-					fis.close();
-					line = line.replaceAll("'", "").replaceFirst(": ", ":");
-					String value = line.split(":", 2)[1];
-					value = value.endsWith("\"") ? value.substring(0, value.length()-1) : value;
-					value = value.startsWith("\"") ? value.substring(1, value.length()) : value;
-					return value;
-				}
-			}
-			br.close();	
-			fis.close();
-			return "0x.E1";
-		} catch (IOException e) {
-			e.printStackTrace();
-			return "0x.E2";
-		}
-	}
-	
-	public static int getLineIndex(File file, String key, String mode) {
-		if (!file.exists()) setup_settings(file);
-		
-		if (mode == "add") {
-			try {
-				return Files.readAllLines(file.toPath(), Charset.defaultCharset()).size()-1;
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		} else if (mode == "overwrite") {
-			
-			try {
-				if (!file.exists()) {setup_settings(file); return getLineIndex(file, key, mode);}
-				FileInputStream fis = new FileInputStream(file);
-				BufferedReader br = new BufferedReader(new InputStreamReader(fis));
-				String line = null;
-				int index = 0;
-				while ((line = br.readLine()) != null) {
-					if (line.startsWith("'"+key+"'"+":") || line.startsWith("'"+key+"'"+": ") || line.startsWith(key+":") || line.startsWith(key+": ")) {
-						br.close();
-						fis.close();
-						return index;
-						
-					}
-					index++;
-				}
-				br.close();	
-				fis.close();
-				return Files.readAllLines(file.toPath(), Charset.defaultCharset()).size()-1;
-			} catch (IOException e) {
-				e.printStackTrace();
-				return 0;
-			}
-			
-		} else {
-			return 0;
-		}
-		return 0;		
-	}
-	
-	public static boolean writeComment(File file, String text, boolean apostrophy) {
-		if (!file.exists()) setup_settings(file);
-		boolean result = false;
-		try {
-			List<String> lines = Files.readAllLines(file.toPath(), Charset.defaultCharset());
-			if (lines.size() > 0) {
-				int index = getLineIndex(file, "#", "add");
-					if (apostrophy) lines.add(index, "#"+"'"+ text+"'");
-					else lines.add(index, "#"+text);
-					Files.write(file.toPath(), lines, Charset.defaultCharset(), StandardOpenOption.CREATE);
-			} else {
-				FileWriter fw = new FileWriter(file);
-				BufferedWriter bw = new BufferedWriter(fw);
-				if (apostrophy) bw.write("#"+"'"+ text+"'");
-				else bw.write("#"+text);
-				bw.close();
-			}
-			result = true;
-		} catch (IOException e) {
-			result = false;
-			e.printStackTrace();
-		}
-		
-		return result;
-	}
-	
-	public static boolean writeLine(File file, String key, String value, boolean apostrophy) {
-		if (!file.exists()) setup_settings(file);
-		boolean result = false;
-		try {
-			List<String> lines = Files.readAllLines(file.toPath(), Charset.defaultCharset());
-			if (lines.size() > 0) {
-				int index = getLineIndex(file, key, "overwrite");
-					if (apostrophy) lines.add(index, key+":'"+ value+"'");
-					else lines.set(index, key+":"+value);
-					Files.write(file.toPath(), lines, Charset.defaultCharset(), StandardOpenOption.CREATE);
-			} else {
-				FileWriter fw = new FileWriter(file);
-				BufferedWriter bw = new BufferedWriter(fw);
-				if (apostrophy) bw.write(key+":'"+ value+"'");
-				else bw.write(key+":"+value);
-				bw.close();
-			}
-			result = true;
-		} catch (IOException e) {
-			result = false;
-			e.printStackTrace();
-		}
-		
-		
-		return result;
-	}
-	
-	public static List<String> getLines(File file, String comment_tag) {
-		if (!file.exists()) setup_settings(file);
-		List<String> lines = new ArrayList<String>();
-		try {
-			
-			FileInputStream fis = new FileInputStream(file);
-			BufferedReader br = new BufferedReader(new InputStreamReader(fis));
-			String line = null;
-			while ((line = br.readLine()) != null) {
-				if (!line.startsWith(comment_tag)) {
-					lines.add(line);
-				}
-			}
-			br.close();	
-			fis.close();
-			return lines;
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		}
-
-	}
-	
 	public static HashMap<ArrayList<Double>,Integer> loadBDD() {
-		File file = new File("database.db");
 		HashMap<ArrayList<Double>,Integer> database = new HashMap<ArrayList<Double>,Integer>();
 		
-		List<String> lines = getLines(file,"#");
+		List<String> lines = FileUtils.getLines("database.db",comment_tags);
 		System.out.println("-===============:[BDD]:===============-");
 		for (int i = 0; i < lines.size(); i++) {
 			String line = lines.get(i);
@@ -560,13 +413,13 @@ public class Main {
 					
 					//Image color processing
 					switch ((String)Main.options.getSelectedItem()) {
-					case "Ø": {
+					case "Ã˜": {
 						break;
 					}
 					case "B&W": {
 						buff = thresholdImage(buff, filter_power.getValue(), false);
 						opencv_imgproc.GaussianBlur(IplImage.createFrom(buff), grabbedImage, opencv_core.cvSize(1,1), 0, 0, 0);
-						if (should_calibrate) {
+						if (should_calibrate && calibrate.isEnabled()) {
 							should_calibrate = false;
 							try{calibrate(buff);}
 							catch (Exception e) {e.printStackTrace();}
@@ -576,7 +429,7 @@ public class Main {
 					case "iB&W": {
 						buff = thresholdImage(buff, filter_power.getValue(), true);
 						opencv_imgproc.GaussianBlur(IplImage.createFrom(buff), grabbedImage, opencv_core.cvSize(1,1), 0, 0, 0);
-						if (should_calibrate) {
+						if (should_calibrate && calibrate.isEnabled()) {
 							should_calibrate = false;
 							try{calibrate(buff);}
 							catch (Exception e) {e.printStackTrace();}
@@ -596,9 +449,6 @@ public class Main {
 
 						    // Return the buffered image
 						    buff = bimage;
-						break;
-					}
-					case "T": {
 						break;
 					}
 					default: {
@@ -628,9 +478,5 @@ public class Main {
 		}
 		return camera_thread;
 		
-	}
-	
-	public static boolean empty(File file) {
-			return file.length() == 0 || !file.exists() || file.isDirectory();
 	}
 }
