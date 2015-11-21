@@ -44,9 +44,9 @@ public class FileUtils {
 				String line = null;
 				while ((line = br.readLine()) != null) {
 				  for (String str : comment_tags) {
-					 if (!line.startsWith(str)) {
+					 if (line.charAt(0)!=str.charAt(0)) {
 						lines.add(line);
-					} 
+					 }
 				  }
 					
 				}
@@ -61,12 +61,16 @@ public class FileUtils {
 			List<String> lines;
 			try {
 				lines = Files.readAllLines(file.toPath(), Charset.defaultCharset());
+				List<String> tor = new ArrayList<String>();
 				for (int i = 0; i < lines.size(); i++) {
 					for (String str : comment_tags) {
 						if (lines.get(i).startsWith(str)) {
-							lines.remove(i);
+							tor.add(lines.get(i));
 						}
 					}
+				}
+				for (String str : tor) {
+					lines.remove(lines.indexOf(str));
 				}
 				return lines;
 			} catch (IOException e) {

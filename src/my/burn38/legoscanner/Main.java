@@ -61,12 +61,13 @@ public class Main {
 	
 	public static void main(String[] args) {
 		comment_tags.add("#");
+		System.out.println("Comment tags are: "+comment_tags.toString());
 		if (!new File("database.db").exists() || FileUtils.isEmpty("database.db")) setup_settings("database.db");
 		if (!new File("settings.conf").exists() || FileUtils.isEmpty("settings.conf")) setup_settings("settings.conf");
 		window = new JFrame();
 		JPanel pan = new JPanel();
 		final JButton button_start = new JButton("Start");
-		final JButton calibrate = new JButton("Calibrate for measurement");
+		calibrate = new JButton("Calibrate for measurement");
 		JButton button_save = new JButton("Save settings");
 		final JLabel text= new JLabel(" ");
 		final JTextField margeder = new JTextField();
