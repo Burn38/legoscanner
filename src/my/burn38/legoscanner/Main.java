@@ -57,7 +57,9 @@ public class Main {
 	static JCheckBox contours=new JCheckBox(), shapes = new JCheckBox();
 	static Thread camera_thread;
 	static CanvasFrame frame;
+	static JTextField margeder;
 	static List<String> comment_tags = new ArrayList<String>();
+	static double marge = 0;
 	
 	public static void main(String[] args) {
 		comment_tags.add("#");
@@ -70,7 +72,7 @@ public class Main {
 		calibrate = new JButton("Calibrate for measurement");
 		JButton button_save = new JButton("Save settings");
 		final JLabel text= new JLabel(" ");
-		final JTextField margeder = new JTextField();
+		margeder = new JTextField();
 		margeder.setPreferredSize(new Dimension(150,30));
 		margeder.setMaximumSize(new Dimension(150,30));
 		margeder.setMinimumSize(new Dimension(150,30));
@@ -242,8 +244,8 @@ public class Main {
 			            opencv_core.cvPoint( boundbox.x() + boundbox.width(), boundbox.y() + boundbox.height()),
 			            opencv_core.cvScalar( 120, 255, 10, 0 ), 1, 0, 0 );
 		        opencv_core.cvPutText(resultImage, boundbox.width()+" * "+boundbox.height(), opencv_core.cvPoint(boundbox.x(), boundbox.y()), opencv_core.cvFont(0.8, 1), opencv_core.cvScalar(120, 255, 10, 0));
-		        opencv_core.cvPutText(resultImage, "["+boundbox.x()+";"+boundbox.y()+"]", opencv_core.cvPoint(boundbox.x(), boundbox.y()-2), opencv_core.cvFont(0.8, 1), opencv_core.cvScalar(120, 255, 10, 0));
-		        opencv_core.cvPutText(resultImage,"~"+(new DecimalFormat("#.##").format((boundbox.width() > boundbox.height() ? boundbox.width() : boundbox.height())/base1cm))+"cm", opencv_core.cvPoint(boundbox.x(), boundbox.y() + boundbox.height()-1), opencv_core.cvFont(0.8, 1), opencv_core.cvScalar(120, 255, 10, 0));
+		        //opencv_core.cvPutText(resultImage, "["+boundbox.x()+";"+boundbox.y()+"]", opencv_core.cvPoint(boundbox.x(), boundbox.y()-2), opencv_core.cvFont(0.8, 1), opencv_core.cvScalar(120, 255, 10, 0));
+		        opencv_core.cvPutText(resultImage,"~"+(new DecimalFormat("#.##").format((boundbox.width() > boundbox.height() ? boundbox.width() : boundbox.height())/base1cm))+" x "+(new DecimalFormat("#.##").format((boundbox.width() < boundbox.height() ? boundbox.width() : boundbox.height())/base1cm))+"cm", opencv_core.cvPoint(boundbox.x(), boundbox.y() + boundbox.height()-1), opencv_core.cvFont(0.8, 1), opencv_core.cvScalar(120, 255, 10, 0));
 	        	}
 	        catch(RuntimeException e){}
 	    }
@@ -274,11 +276,14 @@ public class Main {
 	        	width = Double.parseDouble(new DecimalFormat("#.##").format(width/base1cm).replaceAll(",", "."));
 	        	height = Double.parseDouble(new DecimalFormat("#.##").format(height/base1cm).replaceAll(",", "."));
 	        	
+	        	try {
+	        		marge = Double.parseDouble(margeder.getText());
+	        	} catch (NumberFormatException ex) {}
 	        	
 	        	@SuppressWarnings("unchecked")
 				ArrayList<Double>[] keyset = (ArrayList<Double>[])bdd.keySet().toArray(new ArrayList[bdd.keySet().size()]);
 	        	for (int i = 0; i < keyset.length; i ++) {
-	        		if (width <= keyset[i].get(0)+10 && width >= keyset[i].get(0)-10 && height <= keyset[i].get(1)+10 && height >= keyset[i].get(1)-10) {
+	        		if (width <= keyset[i].get(0)+marge && width >= keyset[i].get(0)-marge && height <= keyset[i].get(1)+marge && height >= keyset[i].get(1)-marge) {
 	        			System.out.println("Found: ID "+bdd.get(keyset[i])+"["+keyset[i].get(0)+";"+keyset[i].get(1)+"] at ("+boundbox.x()+","+boundbox.y()+").");
 	        		}
 	        	}
